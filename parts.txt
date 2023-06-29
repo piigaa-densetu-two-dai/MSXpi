@@ -1,0 +1,21 @@
+部品一覧
+
+U1 RaspberryPiPico 紫色の互換品
+U2 74LV541(TSSOP-20) 秋月電子 https://akizukidenshi.com/catalog/g/gI-03440/
+U3 74LV541(TSSOP-20) 秋月電子 https://akizukidenshi.com/catalog/g/gI-03440/
+U4 74LV541(TSSOP-20) 秋月電子 https://akizukidenshi.com/catalog/g/gI-03440/
+U5 TC74LCX163245FT(TSSOP-48) 秋月電子 https://akizukidenshi.com/catalog/g/gI-07164/
+
+U5の向きに注意(マーキングが上下逆になる向きに取付)
+
+R1 10k～47k位 チップ抵抗(2012/1608等)
+R2 10k～47k位 チップ抵抗(2012/1608等)
+R3 2k チップ抵抗(2012/1608等) 現時点では不要なので取付しないでください
+
+C1 0.1u チップ積層セラミック(2012/1608等)
+C2 0.1u チップ積層セラミック(2012/1608等)
+C3 0.1u チップ積層セラミック(2012/1608等)
+C4 0.1u チップ積層セラミック(2012/1608等)
+C5 0.1u チップ積層セラミック(2012/1608等)
+
+JP1(HOSTと印字) 1x2ピンヘッダとジャンパーピン(2.54mmピッチ) 5VをUSBデバイスに供給する場合にジャンパします
