@@ -1,0 +1,33 @@
+～ SWD経由のbinファイル書き込み方法 ～
+
+openocdをお使いの方には説明不要かと思いますがopenocdを使用したSWD経由のフラッシュ書込み方法です。
+MSXが動作中にMSXπを書き換えるという少々アレな方法なので心配な人はやらないでください。
+
+用意するもの
+
+1. openocdでサポートされているSWDケーブル
+
+cmsis-dap, daplink, jlink等, stlinkは他社デバイスに繋がらないので使えません。
+
+お持ちでない場合は
+https://datasheets.raspberrypi.com/pico/getting-started-with-pico-JP.pdf
+の付録Aを参考にしてPicoprobeを作成、接続して下さい。
+
+2. 最新のopenocd
+
+git clone https://git.code.sf.net/p/openocd/code openocd-code
+で取得してインストールしてください。pico-sdkに含まれているopenocdはzbit製フラッシュメモリに対応していないので使えません。
+
+書き込み方法
+
+MSXπをMSXに装着・通電した状態で以下の例のようにopenocdのprogramコマンドを実行します。
+
+Picoprobeを使用する場合の例
+# openocd -f interface/cmsis-dap.cfg -c "adapter speed 5000" -f target/rp2040.cfg -c "program binファイル verify reset exit 0x10000000"
+
+JLink-OBを使用する場合の例
+# openocd -f interface/jlink.cfg -c "adapter speed 2000" -f target/rp2040.cfg -c "program binファイル verify reset exit 0x10000000"
+
+(書込みspeedは必要に応じて増減してください)
+
+書込みが終わったらMSXを再起動して下さい。
