@@ -1,9 +1,9 @@
-第一・第二水準漢字ロムをpicoオンボードフラッシュメモリからロードする為のファームウェアです。
+第一・第二水準漢字ロムのファームウェアです。
 標準的なIOポート0xd8-0xdbを使用するタイプです。
 
 使用法
 
-1. kanji.binファイルの後ろに使用する第一・第二水準漢字ロムファイル(256Kのもの)を連結します。
+1. kanji.binファイルの後ろに使用する第一・第二水準漢字ロムファイル(ファイルサイズ256Kのもの)を連結します。
 
 unixのcatコマンドを使用する例
 $ cat kanji.bin kanji.rom > firmware.bin
@@ -11,19 +11,23 @@ $ cat kanji.bin kanji.rom > firmware.bin
 windowsのcopyコマンドを使用する例
 >copy /b kanji.bin + kanji.rom firmware.bin
 
-注意：出力ファイルの拡張子は.binにしてください。
+2. uf2conv.exeを用いて1で作成したfirmware.binをuf2ファイルに変換します。
 
-2. MSXに刺さっていない状態のMSXπをブートモードでPCに接続します。
+例: windowsコマンドプロンプト上で
+uf2conv.exe firmware.bin firmware.uf2
 
-picoのBOOTボタンを押しながらPCとUSB接続して下さい。
+uf2conv.exeはhttps://github.com/piigaa-densetu-two-dai/MSXpiにあります。
+
+3. MSXに刺さっていない状態のMSXπをブートモードでPCに接続します。
+
+MSXπのBOOTSELボタンを押しながらPCとUSB接続して下さい。
+接続が成功するとドライブが認識されます。
 HOSTジャンパの状態は不問です。
 
-3. picotoolでpicoにロード(書込み)します
+4. MSXπに2で作成したfirmware.uf2ファイルを書き込みします。
 
-binファイルはドラッグアンドドロップ書込み出来ないのでpico-sdk付属のpicotoolを使用します。
-
-例
-picotool load firmware.bin
+3で認識されたドライブにfirmware.uf2をドラッグアンドドロップ(コピー)します。
+コピーが完了するとドライブが見えなくなります。
 
 4. 書込みが終わったらPCから外して完了
 
