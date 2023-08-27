@@ -43,8 +43,8 @@ HX-21内蔵ワープロソフトのみで動作確認(第二水準は未確認)
 
 * keyboard
 USBキーボードインターフェース
-MSX/MSX2/MSX2+で動くと思います。
+MSX/MSX2/MSX2+/MSXturboRで動くと思います。
 
 * tape
 データレコーダーエミュレーター
-初代MSXのみでの動作確認ですがMSX2/MSX2+でも動くと思います。
+MSX/MSX2/MSX2+で動くと思います。MSXturboRは動きません。
