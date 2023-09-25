@@ -1,12 +1,15 @@
 256in1ロムファイルの作り方
 
 256in1に含めたいROM/CASファイル(1～256ファイル)を用意し、以下の形式の名前にリネームします。
+非圧縮時128Kバイト以下のファイルに限りgzip形式(zip形式ではありません！)の圧縮ファイルも使用可能です。
 
 * ROMファイルの場合
-<NNN>_<MAPPER>.rom
+<NNN>_<MAPPER>.rom 又は
+<NNN>_<MAPPER>.rom.gz (圧縮時)
 
 * CASファイルの場合
-<NNN>_tape.cas
+<NNN>_tape.cas 又は
+<NNN>_tape.cas.gz (圧縮時)
 
 NNN=ROM番号(000～255)
 
@@ -38,3 +41,5 @@ MAPPER=ROMのマッパー形式(normal, ascii8k, ascii16k, konami, rtype の何�
 [005] mapper:10 offset:00168000 name:005_tape.cas
 
 同ディレクトリに作成されるroms.binというファイルが256in1ロムファイルです。
+
+御注意: ごく稀に圧縮すると起動しなくなってしまうゲームがあります。そのような場合は非圧縮でご使用ください。
