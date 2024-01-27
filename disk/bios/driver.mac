@@ -1,0 +1,537 @@
+; A template driver section
+; (C) 1992-2005 by Ultrasoft
+;
+; By:	Arjen Zeilemaker
+;
+; Version:		0.90
+
+
+
+
+; symbols which can be used from the kernel
+
+; GETSLT	get my slotid
+; DIV16		divide
+; GETWRK	get my workarea
+; SETINT	install my interrupt handler
+; PRVINT	call orginal interrupt handler
+; PROMPT	prompt for phantom drive
+; RAWFLG	verify flag
+; $SECBUF	temporary sectorbuffer
+; XFER		transfer to TPA
+; DISINT	inform interrupts are being disabled
+; ENAINT	inform interrupts are being enabled
+; PROCNM	CALL statement name
+
+; symbols which must be defined by the driver
+
+; INIHRD	initialize diskdriver hardware
+; DRIVES	how many drives are connected
+; INIENV	initialize diskdriver workarea
+; DSKIO		diskdriver sector i/o
+; DSKCHG	diskdriver diskchange status
+; GETDPB	build Drive Parameter Block
+; CHOICE	get format choice string
+; DSKFMT	format disk
+; MTOFF		stop diskmotor
+; OEMSTA	diskdriver special call statements
+
+; MYSIZE	size of diskdriver workarea
+; SECLEN	size of biggest sector supported by the diskdriver
+; DEFDPB	pointer to a default Drive Parameter Block
+
+
+; errorcodes used by DSKIO, DSKCHG and GETDPB
+;
+; 0	write protect error
+; 2	not ready error
+; 4	data (crc) error
+; 6	seek error
+; 8	record not found error
+; 10	write fault error
+; 12	other error
+;
+; DOS2 only errorcodes
+;
+; 14    ?
+; 16    ?
+; 20    not a DOS disk
+; 22    incompatible disk
+; 24    disk not formated
+; 26    disk changed
+
+; errorcodes used by DSKFMT
+;
+; 0	write protect error
+; 2	not ready error
+; 4	data (crc) error
+; 6	seek error
+; 8	record not found error
+; 10	write fault error
+; 12	bad parameter
+; 14	insufficient memory
+; 16	other error
+
+
+
+MYSIZE		equ	0		; Size of environment
+SECLEN		equ	512		; Size of biggest sector
+
+ADDR_CMD	equ	7df0h
+ADDR_ERR	equ	7df1h
+ADDR_DRV	equ	7df1h
+ADDR_VAL	equ	7df2h
+ADDR_BUF	equ	7e00h
+
+; INIHRD
+;
+; Input:	None
+; Output:	None
+; Changed:	AF,BC,DE,HL,IX,IY may be affected
+
+INIHRD:
+	ret
+
+
+
+; DRIVES
+;
+; Input: 	F	Zx set if to return physical drives
+;			Zx reset if to return at least 2 drives, if only one
+;			  physical drive it becomes a phantom drive
+; Output:	L	number of drives
+; Changed:	F,HL,IX,IY may be affected
+;
+; Remark:	DOS1 does not handle L=0 correctly
+
+DRIVES:		; 0x7df0:CMD(1)
+	call	DISINT
+	di
+	push	af
+	ld	hl, ADDR_CMD
+	ld	(hl), 1
+DRIVES_WAIT:
+	ld	a, (hl)
+	and	a
+	jp	nz, DRIVES_WAIT
+	ld	a, (ADDR_VAL)
+	ld	l, a
+	pop	af
+	ei
+	call	ENAINT
+	ret
+
+
+
+; INIENV
+;
+; Input: 	None
+; Output:	None
+; Changed:	AF,BC,DE,HL,IX,IY may be affected
+;
+; Remark:	examples installs own interrupt handler, but this is NOT required.
+;		depends on the hardware if this is needed.
+
+INIENV:
+	ld	hl, INTHAND
+	jp	SETINT
+
+INTHAND:	; 0x7df0:CMD(8)
+	push	af
+	push	bc
+	push	hl
+INTHAND_START:
+	ld	a, 7		; ESCがある行
+	call	MYSNSMAT
+	bit	2, a		; ESC
+	jp	nz, INTHAND_END	; 押されていない
+	ld	a, 6		; GRAPHがある行
+	call	MYSNSMAT
+	bit	2, a		; GRAPH
+	jp	nz, INTHAND_END	; 押されていない
+	ld	a, 0		; 7-0の行
+	call	MYSNSMAT
+	ld	hl, ADDR_BUF
+	ld	(hl), a
+	ld	a, 1		; 9-8がある行
+	call	MYSNSMAT
+	inc	hl		; ADDR_BUF + 1
+	ld	(hl), a
+	ld	a, 7		; RETURNがある行
+	call	MYSNSMAT
+	inc	hl		; ADDR_BUF + 2
+	ld	(hl), a
+	ld	hl, ADDR_CMD
+	ld	(hl), 8		; CMD=8
+INTHAND_WAIT:
+	ld	a, (hl)
+	and	a
+	jp	nz, INTHAND_WAIT
+	jp	INTHAND_START
+INTHAND_END:
+	pop	hl
+	pop	bc
+	pop	af
+	jp	PRVINT
+
+MYSNSMAT:	; EIしないSNSMAT
+	ld	c, a
+	in	a, (0aah)
+	and	0f0h
+	add	a, c
+	out	(0aah), a
+	in	a, (0a9h)
+	ret
+
+
+
+; DSKIO
+;
+; Input: 	A	Drivenumber
+;		F	Cx reset for read
+;			Cx set for write
+; 		B	number of sectors
+; 		C	Media descriptor
+;		DE	logical sectornumber
+; 		HL	transferaddress
+; Output:	F	Cx set for error
+;			Cx reset for ok
+;		A	if error, errorcode
+;		B	if error, remaining sectors
+; Changed:	AF,BC,DE,HL,IX,IY may be affected
+
+DSKIO:		; 0x7df0:CMD(4/5) 0x7df1:A 0x7df2:E 0x7df3:D
+	call	DISINT
+	di
+	jp	c, WRITE
+READ:
+	push	bc
+	push	af
+	push	hl
+	ld	hl, ADDR_DRV
+	ld	(hl), a
+	inc	hl
+	ld	(hl), e
+	inc	hl
+	ld	(hl), d
+	ld	hl, ADDR_CMD
+	ld	(hl), 4
+READ_WAIT:
+	ld	a, (hl)
+	and	a
+	jp	nz, READ_WAIT
+	ld	a, (ADDR_ERR)
+	and	a
+	jp	nz, DSKIO_ERROR
+	pop	hl
+	; 転送先が裏に隠れているRAM領域かどうかをチェック
+	ld	a, h
+	and	a		; transfer from 8000h-ffffh ?
+	jp	m, READ_DIRECT	; yep, direct sector transfer
+	cp	3eh		; transfer from 0000h-3dffh ?
+	jp	c, READ_DIRECT	; yep, direct sector transfer
+	pop	af
+	; MSXpiからSECBUFにコピー
+	push	hl
+	push	de
+	ld	hl, ADDR_BUF
+	ld	de, ($SECBUF)
+	ld	bc, 512
+	ldir
+	pop	de
+	pop	hl
+	; SECBUFから転送先にコピー
+	push	hl
+	push	de
+	ld	de, ($SECBUF)
+	ex	de, hl
+	ld	bc, 512
+	call	xfer
+	pop	de
+	pop	hl
+READ_END:
+	ld	bc, 512
+	add	hl, bc
+	inc	de
+	pop	bc
+	dec	b
+	jp	z, DSKIO_EXIT
+	jp	READ
+READ_DIRECT:
+	pop	af
+	; MSXpiから転送先にコピー
+	push	hl
+	push	de
+	ld	de, ADDR_BUF
+	ex	de, hl
+	ld	bc, 512
+	ldir
+	pop	de
+	pop	hl
+	jp	READ_END
+WRITE:
+	push	bc
+	push	af
+	; 転送元が裏に隠れているRAM領域かどうかをチェック
+	ld	a, h
+	and	a		; transfer from 8000h-ffffh ?
+	jp	m, WRITE_DIRECT	; yep, direct sector transfer
+	cp	3eh		; transfer from 0000h-3dffh ?
+	jp	c, WRITE_DIRECT	; yep, direct sector transfer
+	pop	af
+	; 転送元からSECBUFにコピー
+	push	hl
+	push	de
+	ld	de, ($SECBUF)
+	ld	bc, 512
+	call	xfer
+	pop	de
+	pop	hl
+	; SECBUFからMSXpiにコピー
+	push	hl
+	push	de
+	ld	hl, ($SECBUF)
+	ld	de, ADDR_BUF
+	ld	bc, 512
+	ldir
+	pop	de
+	pop	hl
+WRITE_END:
+	push	af
+	push	hl
+	ld	hl, ADDR_DRV
+	ld	(hl), a
+	inc	hl
+	ld	(hl), e
+	inc	hl
+	ld	(hl), d
+	ld	hl, ADDR_CMD
+	ld	(hl), 5
+WRITE_WAIT:
+	ld	a, (hl)
+	and	a
+	jp	nz, WRITE_WAIT
+	ld	a, (ADDR_ERR)
+	and	a
+	jp	nz, DSKIO_ERROR
+	pop	hl
+	pop	af
+	ld	bc, 512
+	add	hl, bc
+	inc	de
+	pop	bc
+	dec	b
+	jp	z, DSKIO_EXIT
+	jp	WRITE
+WRITE_DIRECT:
+	pop	af
+	; 転送元からMSXpiにコピー
+	push	hl
+	push	de
+	ld	de, ADDR_BUF
+	ld	bc, 512
+	ldir
+	pop	de
+	pop	hl
+	jp	WRITE_END
+DSKIO_EXIT:
+	and	a
+	ei
+	call	ENAINT
+	ret
+DSKIO_ERROR:
+	pop	hl
+	ld	d, a
+	pop	af
+	ld	a, d
+	pop	bc
+	cpl
+	scf
+	ei
+	call	ENAINT
+	ret
+
+
+
+; DSKCHG
+;
+; Input: 	A	Drivenumber
+; 		B	0
+; 		C	Media descriptor
+; 		HL	pointer to DPB
+; Output:	F	Cx set for error
+;			Cx reset for ok
+;		A	if error, errorcode
+;		B	if no error, disk change status
+;			01 disk unchanged
+;			00 unknown
+;			FF disk changed
+; Changed:	AF,BC,DE,HL,IX,IY may be affected
+; Remark:	DOS1 kernel expects the DPB updated when disk change status is unknown or changed
+;		DOS2 kernel does not care if the DPB is updated or not
+
+DSKCHG:		; 0x7df0:CMD(3) 0x7df1:A
+	call	DISINT
+	di
+	ld	hl, ADDR_DRV
+	ld	(hl), a
+	ld	hl, ADDR_CMD
+	ld	(hl), 3
+DSKCHG_WAIT:
+	ld	a, (hl)
+	and	a
+	jp	nz, DSKCHG_WAIT
+	ld	a, (ADDR_ERR)
+	and	a
+	jp	nz, DSKCHG_ERROR
+	ld	a, (ADDR_VAL)
+	ld	b, a
+	and	a
+	ei
+	call	ENAINT
+	ret
+DSKCHG_ERROR:
+	cpl
+	scf
+	ei
+	call	ENAINT
+	ret
+
+
+
+; GETDPB
+;
+; Input: 	A	Drivenumber
+; 		B	first byte of FAT
+; 		C	Media descriptor
+; 		HL	pointer to DPB
+; Output:	[HL+1]
+;		..
+;		[HL+18]	updated
+; Changed:	AF,BC,DE,HL,IX,IY may be affected
+
+GETDPB:		; 0x7df0:CMD(2) 0x7df1:A 0x7df2:B
+	call	DISINT
+	di
+	push	hl
+	ld	hl, ADDR_DRV
+	ld	(hl), a
+	inc	hl
+	ld	(hl), b
+	ld	hl, ADDR_CMD
+	ld	(hl), 2
+GETDPB_WAIT:
+	ld	a, (hl)
+	and	a
+	jp	nz, GETDPB_WAIT
+	pop	hl
+	ex	de, hl
+	ld	hl, ADDR_BUF
+	inc	de
+	ld	bc, 18
+	ldir
+	ei
+	call	ENAINT
+	ret
+
+DEFDPB equ $-1
+	defb	0f9h	; media f9
+	defw	512	; 80 tracks
+	defb	0fh	; 9 sectors
+	defb	04h	; 2 sides
+	defb	01h	; 3.5" 720 kb
+	defb	02h
+	defw	1
+	defb	2
+	defb	112
+	defw	14
+	defw	714
+	defb	3
+	defw	7
+
+
+
+; CHOICE
+;
+; Input: 	None
+; Output:	HL	pointer to choice string, 0 if no choice
+; Changed:	AF,BC,DE,HL,IX,IY may be affected
+
+CHOICE:		; 0x7df0:CMD(6)
+	call	DISINT
+	di
+	ld	hl, ADDR_CMD
+	ld	(hl), 6
+CHOICE_WAIT:
+	ld	a, (hl)
+	and	a
+	jp	nz, CHOICE_WAIT
+	ld	hl, ADDR_BUF
+	ei
+	call	ENAINT
+	ret
+
+
+
+; DSKFMT
+;
+; Input: 	A	choicecode (1-9)
+;		D	drivenumber
+;		HL	begin of workarea
+;		BC	length of workarea
+; Output:	F	Cx set for error
+;			Cx reset for ok
+;		A	if error, errorcode
+; Changed:	AF,BC,DE,HL,IX,IY may be affected
+
+DSKFMT:		; 0x7df0:CMD(7) 0x7df1:D 0x7df2:A
+	call	DISINT
+	di
+	ld	hl, ADDR_VAL
+	ld	(hl), a
+	ld	hl, ADDR_DRV
+	ld	(hl), d
+	ld	hl, ADDR_CMD
+	ld	(hl), 7
+DSKFMT_WAIT:
+	ld	a, (hl)
+	and	a
+	jp	nz, DSKFMT_WAIT
+	ld	a, (ADDR_ERR)
+	and	a
+	jp	nz, DSKFMT_ERROR
+	ei
+	call	ENAINT
+	ret
+DSKFMT_ERROR:
+	cpl
+	scf
+	ei
+	call	ENAINT
+	ret
+
+
+
+; OEMSTATEMENT
+;
+; Input:	HL	basicpointer
+; Output:	F	Cx set if statement not recognized
+;			Cx reset if statement is recognized
+;		HL	basicpointer,	updated if recognized
+;					unchanged if not recognized
+; Changed:	AF,BC,DE,HL,IX,IY may be affected
+
+OEMSTA:
+	scf
+	ret
+
+
+
+; MTOFF
+;
+; Input:	None
+; Output:	None
+; Changed:	AF,BC,DE,HL,IX,IY may be affected
+
+MTOFF:
+	ret
