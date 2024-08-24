@@ -41,14 +41,14 @@ HX-21内蔵ワープロソフトのみで動作確認(第二水準は未確認)
 * sunrise
 Nextor対応Sunrise IDE(ハードディスク)エミュレーター
 
-* sunrise192k
-Nextor対応Sunrise IDE(ハードディスク)+192kマッパーラムエミュレーター
+* sunrise240k
+Nextor対応Sunrise IDE(ハードディスク)+240kマッパーラムエミュレーター
 
 * megaram
-MegaRAM(248k)エミュレーター
+MegaRAM(256k)エミュレーター
 
 * mmapper
-マッパーメモリー(240KB)エミュレーター
+マッパーメモリー(256KB)エミュレーター
 
 * disk
 ディスクドライブエミュレーター
