@@ -6,6 +6,7 @@ ascii8k.bin ASCII8Kマッパー用
 ascii16k.bin ASCII16Kマッパー用
 konami.bin コナミマッパー用
 rtype.bin R-TYPEマッパー用
+neo16.bin NEO-16マッパー用
 
 使用法
 
