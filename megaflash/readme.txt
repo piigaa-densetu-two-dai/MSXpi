@@ -7,6 +7,8 @@ ascii16k.bin ASCII16Kマッパー用
 konami.bin コナミマッパー用
 rtype.bin R-TYPEマッパー用
 neo16.bin NEO-16マッパー用(ROMサイズ16368Kまで対応)
+
+テスト版
 ascii16x.bin ASCII16-X(ASCII-X)マッパー用(書込み機能は未対応、ROMサイズ8192Kまで対応)
 
 使用法
